@@ -7,78 +7,114 @@ export default async function handler(req, res) {
 
   try {
     const parsedUrl = new URL(targetUrl);
+    const hostname = parsedUrl.hostname.toLowerCase();
     
-    // 1. Fetch the original video player page
+    // 1. Fetch original video player page
     const fetchOptions = {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-        'Referer': parsedUrl.origin, // Mimic a real browser request to bypass basic blocks
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Referer': parsedUrl.origin,
+        'Accept': 'text/html,application/xhtml+xml,application/xml',
       },
     };
 
     const response = await fetch(targetUrl, fetchOptions);
     let html = await response.text();
 
-    // 2. Fix relative links so video assets still load from the original server
+    // 2. Fix relative links
     const baseTag = `<base href="${parsedUrl.origin}">`;
     html = html.replace('<head>', `<head>\n${baseTag}`);
 
-    // 3. Inject the Anti-Ad & Anti-Popup Script
+    // 3. Determine Player-Specific Logic
+    let playerSpecificRules = '';
+
+    if (hostname.includes('megaplay') || hostname.includes('megacloud')) {
+      // Megaplay injects full-screen absolute divs right before play.
+      playerSpecificRules = `
+        console.log('Megaplay detected. Engaging specific filters.');
+        const clearMegaplayAds = (node) => {
+          if (node.tagName === 'DIV' && node.style.position === 'absolute' && node.style.zIndex > 20000) {
+            node.remove();
+          }
+        };
+      `;
+    } else if (hostname.includes('vidnest') || hostname.includes('animepahe')) {
+      // Vidnest/Animepahe use specific a-tag wrappers for clickjacking.
+      playerSpecificRules = `
+        console.log('Vidnest/Animepahe detected. Engaging specific filters.');
+        const clearVidnestAds = (node) => {
+          if (node.tagName === 'A' && node.target === '_blank' && !node.href.includes('vidnest')) {
+            node.remove();
+          }
+        };
+      `;
+    } else if (hostname.includes('abyss')) {
+      // Abyss uses heavily obfuscated cross-origin iframes layered over the play button.
+      playerSpecificRules = `
+        console.log('Abyss detected. Engaging specific filters.');
+        const clearAbyssAds = (node) => {
+          if (node.tagName === 'IFRAME' && !node.src.includes('abyss')) {
+             node.style.display = 'none';
+             node.remove();
+          }
+        };
+      `;
+    }
+
+    // 4. Inject the Universal + Player-Specific Anti-Ad Script
     const antiAdScript = `
       <script>
-        // 🛑 Kill Popups and Redirects
-        window.open = function() { console.log('Popup blocked.'); return null; };
+        // --- UNIVERSAL BLOCKERS ---
+        // Nullify popup commands completely
+        window.open = function() { console.log('Blocked popup attempt.'); return null; };
         window.alert = function() { return null; };
-        window.confirm = function() { return false; };
         
-        // 🛑 Intercept dynamic script creation for known ad networks
-        const originalCreateElement = document.createElement;
-        document.createElement = function(tagName) {
-          const el = originalCreateElement.call(document, tagName);
-          if (tagName.toLowerCase() === 'script') {
-            Object.defineProperty(el, 'src', {
-              set: function(val) {
-                const badDomains = ['propellerads', 'popads', 'adsterra', 'exoclick', 'hilltopads', 'onclick', 'adcash'];
-                if (badDomains.some(domain => val.includes(domain))) {
-                  console.log('Blocked dynamic ad script:', val);
-                } else {
-                  el.setAttribute('src', val);
-                }
-              },
-              get: function() { return el.getAttribute('src'); }
-            });
-          }
-          return el;
-        };
+        // --- PLAYER SPECIFIC LOGIC ---
+        ${playerSpecificRules}
 
-        // 🛑 Destroy invisible click-jack overlays (the "touch anywhere and an ad opens" trick)
+        // --- REAL-TIME MUTATION OBSERVER ---
+        // This watches the DOM and destroys ad overlays the moment they spawn
         document.addEventListener('DOMContentLoaded', () => {
-          setInterval(() => {
-            // Find links or divs that are absolute/fixed and cover the whole screen
-            document.querySelectorAll('a, div').forEach(node => {
-              const style = window.getComputedStyle(node);
-              if ((style.position === 'absolute' || style.position === 'fixed') && style.zIndex > 900) {
-                if (node.offsetWidth > window.innerWidth * 0.7) {
-                  node.remove(); // Nuke the invisible overlay
+          const observer = new MutationObserver((mutations) => {
+            for (let mutation of mutations) {
+              for (let node of mutation.addedNodes) {
+                if (node.nodeType === 1) { // Ensure it's an element
+                  
+                  // Run player specific checks if they exist
+                  if (typeof clearMegaplayAds === 'function') clearMegaplayAds(node);
+                  if (typeof clearVidnestAds === 'function') clearVidnestAds(node);
+                  if (typeof clearAbyssAds === 'function') clearAbyssAds(node);
+
+                  // Universal overlay destroyer (catches anything that covers the screen)
+                  const style = window.getComputedStyle(node);
+                  if ((style.position === 'absolute' || style.position === 'fixed') && parseInt(style.zIndex, 10) > 999) {
+                     if (node.offsetWidth > window.innerWidth * 0.5) {
+                        console.log('Nuked invisible click-overlay.', node);
+                        node.remove();
+                     }
+                  }
                 }
               }
-            });
-          }, 1000);
+            }
+          });
+
+          // Start observing the entire document body for injected ads
+          observer.observe(document.body, { childList: true, subtree: true });
         });
       </script>
     `;
+    
     html = html.replace('<head>', `<head>\n${antiAdScript}`);
 
-    // 4. Strip hardcoded ad scripts via regex
+    // 5. Clean known hardcoded ad scripts from the raw HTML
     html = html.replace(/<script[^>]+src=["'][^"']*(popads|propellerads|adsterra|exoclick|adcash)[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
 
-    // 5. Send the clean HTML back
+    // 6. Return the sanitized player
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(200).send(html);
 
   } catch (error) {
-    console.error(error);
+    console.error('Proxy Error:', error);
     res.status(500).json({ error: 'Failed to proxy the player.' });
   }
 }
