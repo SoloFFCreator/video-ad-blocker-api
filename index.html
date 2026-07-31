@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website Search</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 3rem auto;
+      padding: 0 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .result-item {
+      margin-top: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+    .result-item a {
+      color: #0066cc;
+      text-decoration: none;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+    .result-item p {
+      margin: 0.25rem 0 0;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Site Search</h2>
+  <input type="text" id="searchInput" placeholder="Search pages or articles..." />
+  <div id="resultsContainer"></div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const resultsContainer = document.getElementById('resultsContainer');
+    let debounceTimer;
+
+    // Listen for input events with debouncing
+    searchInput.addEventListener('input', (event) => {
+      clearTimeout(debounceTimer);
+      const query = event.target.value;
+
+      debounceTimer = setTimeout(() => {
+        fetchResults(query);
+      }, 300);
+    });
+
+    async function fetchResults(query) {
+      if (!query.trim()) {
+        resultsContainer.innerHTML = '';
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:3000/api/search?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        renderResults(data.results);
+      } catch (error) {
+        resultsContainer.innerHTML = '<p>Error fetching search results.</p>';
+      }
+    }
+
+    function renderResults(results) {
+      if (results.length === 0) {
+        resultsContainer.innerHTML = '<p>No matching results found.</p>';
+        return;
+      }
+
+      resultsContainer.innerHTML = results.map(item => `
+        <div class="result-item">
+          <a href="${item.url}">${item.title}</a>
+          <p>${item.description}</p>
+        </div>
+      `).join('');
+    }
+  </script>
+
+</body>
+</html>
