@@ -1,39 +1,26 @@
-// File: /api/search.js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
 
-export default function handler(req, res) {
-  // Allow cross-origin requests from your main website
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// Define the traffic simulation profile
+export const options = {
+  stages: [
+    { duration: '10s', target: 10 }, // Ramp up to 10 virtual users
+    { duration: '30s', target: 10 }, // Hold load for 30 seconds
+    { duration: '10s', target: 0 },  // Ramp down to 0 users
+  ],
+};
 
-  // Handle browser CORS preflight check
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+export default function () {
+  // Simulate a user searching the API
+  const url = 'https://video-ad-blocker-api.vercel.app/api/search?q=test';
+  const response = http.get(url);
 
-  // Extract query parameter from request (e.g., ?q=home)
-  const { q } = req.query;
-  const query = q ? q.toLowerCase().trim() : '';
-
-  // Your website content index
-  const siteContent = [
-    { id: 1, title: 'Home Page', url: 'https://www.dipamalla.com.np/home.html', description: 'Welcome to Dipam Alla official website portfolio.' },
-    { id: 2, title: 'About Me', url: 'https://www.dipamalla.com.np/about.html', description: 'Learn more about my background, skills, and projects.' },
-    { id: 3, title: 'Projects', url: 'https://www.dipamalla.com.np/projects.html', description: 'Web development tools, projects, and apps built by me.' },
-  ];
-
-  if (!query) {
-    return res.status(200).json({ count: 0, results: [] });
-  }
-
-  // Filter items matching title or description
-  const results = siteContent.filter(item =>
-    item.title.toLowerCase().includes(query) ||
-    item.description.toLowerCase().includes(query)
-  );
-
-  return res.status(200).json({
-    count: results.length,
-    results
+  // Assert that the server responds with HTTP 200 OK
+  check(response, {
+    'status is 200': (r) => r.status === 200,
+    'response time < 500ms': (r) => r.timings.duration < 500,
   });
+
+  // Pause between requests to simulate user reading time
+  sleep(1);
 }
