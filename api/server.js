@@ -1,37 +1,39 @@
-const express = require('express');
-const cors = require('cors');
+// File: /api/search.js
 
-const app = express();
-app.use(cors()); // Allows frontend requests from your site
-app.use(express.json());
+export default function handler(req, res) {
+  // Allow cross-origin requests from your main website
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-// Sample in-memory database of your website's pages or blog posts
-const siteContent = [
-  { id: 1, title: 'Getting Started with JavaScript', url: '/blog/js-guide', description: 'Learn basic JavaScript syntax and modern ES6 features.' },
-  { id: 2, title: 'HTML & CSS Layout Essentials', url: '/blog/html-css', description: 'Master flexbox and grid layouts for responsive Web design.' },
-  { id: 3, title: 'Building REST APIs with Express', url: '/blog/express-api', description: 'How to construct lightweight backend APIs using Node.js.' },
-];
-
-// Search Endpoint
-app.get('/api/search', (req, res) => {
-  const query = req.query.q ? req.query.q.toLowerCase().trim() : '';
-
-  if (!query) {
-    return res.json({ count: 0, results: [] });
+  // Handle browser CORS preflight check
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  // Filter content matching the query in either title or description
+  // Extract query parameter from request (e.g., ?q=home)
+  const { q } = req.query;
+  const query = q ? q.toLowerCase().trim() : '';
+
+  // Your website content index
+  const siteContent = [
+    { id: 1, title: 'Home Page', url: 'https://www.dipamalla.com.np/home.html', description: 'Welcome to Dipam Alla official website portfolio.' },
+    { id: 2, title: 'About Me', url: 'https://www.dipamalla.com.np/about.html', description: 'Learn more about my background, skills, and projects.' },
+    { id: 3, title: 'Projects', url: 'https://www.dipamalla.com.np/projects.html', description: 'Web development tools, projects, and apps built by me.' },
+  ];
+
+  if (!query) {
+    return res.status(200).json({ count: 0, results: [] });
+  }
+
+  // Filter items matching title or description
   const results = siteContent.filter(item =>
     item.title.toLowerCase().includes(query) ||
     item.description.toLowerCase().includes(query)
   );
 
-  res.json({
+  return res.status(200).json({
     count: results.length,
     results
   });
-});
-
-app.listen(3000, () => {
-  console.log('Search API running on http://localhost:3000');
-});
+}
