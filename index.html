@@ -1,101 +1,395 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Site Search</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Multi-View Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            yt: {
+              bg: '#0f0f0f',
+              card: '#1f1f1f',
+              border: '#383838',
+              hover: '#272727',
+              red: '#ff0000',
+              redHover: '#cc0000',
+              text: '#f1f1f1',
+              muted: '#aaaaaa'
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 600px;
-      margin: 3rem auto;
-      padding: 0 1rem;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-    }
-    .result-item {
-      margin-top: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #eee;
-    }
-    .result-item a {
-      color: #0066cc;
-      text-decoration: none;
-      font-size: 1.1rem;
-      font-weight: bold;
-    }
-    .result-item p {
-      margin: 0.25rem 0 0;
-      color: #555;
-    }
-    .error {
-      color: #d32f2f;
-      margin-top: 1rem;
+      background-color: #0f0f0f;
+      color: #f1f1f1;
+      font-family: Roboto, Arial, sans-serif;
     }
   </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col">
 
-  <h2>Search My Site</h2>
-  <input type="text" id="searchInput" placeholder="Type to search..." />
-  <div id="resultsContainer"></div>
+  <!-- YouTube Styled Header -->
+  <header class="sticky top-0 z-50 bg-[#0f0f0f]/95 backdrop-blur border-b border-[#272727] px-4 py-2.5 flex items-center justify-between gap-4">
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1">
+        <!-- YouTube Red Icon -->
+        <svg class="w-8 h-6 text-[#ff0000]" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        <span class="text-xl font-bold tracking-tighter text-white font-sans">YouTube</span>
+        <span class="text-[10px] text-yt-muted border border-yt-border px-1.5 py-0.5 rounded ml-1 uppercase tracking-wider">Multi-View</span>
+      </div>
+    </div>
+
+    <!-- Quick Stats Bar in Header -->
+    <div class="hidden md:flex items-center gap-6 bg-[#1f1f1f] px-4 py-1.5 rounded-full border border-[#272727] text-xs">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-yt-muted">Active Streams:</span>
+        <span id="headerActiveStreams" class="font-semibold text-white">0</span>
+      </div>
+      <div class="h-3 w-px bg-yt-border"></div>
+      <div>
+        <span class="text-yt-muted">Session Time:</span>
+        <span id="headerSessionTime" class="font-semibold text-white">00:00:00</span>
+      </div>
+      <div class="h-3 w-px bg-yt-border"></div>
+      <div>
+        <span class="text-yt-muted">Session Views:</span>
+        <span id="headerSessionViews" class="font-semibold text-emerald-400">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Control Panel -->
+    <div class="bg-[#1f1f1f] border border-[#272727] rounded-2xl p-4 sm:p-6 shadow-2xl space-y-5">
+      
+      <!-- Video URL Input -->
+      <div class="space-y-2">
+        <label for="ytUrl" class="block text-xs font-medium uppercase tracking-wider text-yt-muted">YouTube Video URL</label>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <div class="relative flex-1">
+            <input 
+              type="text" 
+              id="ytUrl" 
+              placeholder="Paste YouTube link (e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ)" 
+              class="w-full bg-[#0f0f0f] border border-[#383838] focus:border-[#3ea6ff] rounded-full px-5 py-2.5 text-sm text-white placeholder-yt-muted focus:outline-none transition"
+            />
+          </div>
+          <button 
+            onclick="loadMultiView()" 
+            class="bg-[#ff0000] hover:bg-[#cc0000] text-white font-medium px-6 py-2.5 rounded-full text-sm transition duration-200 flex items-center justify-center gap-2 shadow-lg"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Load Multi-View
+          </button>
+        </div>
+      </div>
+
+      <!-- Settings Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#272727]">
+        
+        <!-- Screen Count Selector -->
+        <div>
+          <label for="screenCount" class="block text-xs font-medium uppercase tracking-wider text-yt-muted mb-1">Number of Windows</label>
+          <select 
+            id="screenCount" 
+            class="w-full bg-[#0f0f0f] border border-[#383838] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3ea6ff]"
+          >
+            <option value="2">2 Concurrent Windows</option>
+            <option value="4" selected>4 Concurrent Windows</option>
+            <option value="6">6 Concurrent Windows</option>
+            <option value="8">8 Concurrent Windows</option>
+            <option value="10">10 Concurrent Windows</option>
+          </select>
+        </div>
+
+        <!-- Optional YouTube API Key Input -->
+        <div>
+          <label for="apiKey" class="block text-xs font-medium uppercase tracking-wider text-yt-muted mb-1">
+            YouTube API Key <span class="text-[10px] text-gray-500 font-normal">(Optional for live count)</span>
+          </label>
+          <input 
+            type="password" 
+            id="apiKey" 
+            placeholder="Paste YouTube API Key (Optional)" 
+            class="w-full bg-[#0f0f0f] border border-[#383838] focus:border-[#3ea6ff] rounded-lg px-3 py-2 text-sm text-white placeholder-yt-muted focus:outline-none transition"
+          />
+        </div>
+
+        <!-- Loop Refresh Interval -->
+        <div>
+          <label for="refreshInterval" class="block text-xs font-medium uppercase tracking-wider text-yt-muted mb-1">View Retention Loop</label>
+          <select 
+            id="refreshInterval" 
+            class="w-full bg-[#0f0f0f] border border-[#383838] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3ea6ff]"
+          >
+            <option value="0">Off (Continuous Play)</option>
+            <option value="35">Loop every 35 sec (Min Retention Threshold)</option>
+            <option value="60">Loop every 60 sec</option>
+            <option value="120">Loop every 2 mins</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Error Banner -->
+      <div id="errorMessage" class="hidden p-3 bg-red-950/60 border border-red-800 rounded-lg text-red-200 text-xs"></div>
+    </div>
+
+    <!-- Live View Counter Dashboard -->
+    <div id="statsContainer" class="bg-[#1f1f1f] border border-[#272727] rounded-2xl p-5 shadow-xl">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-[#272727]">
+        <div class="flex items-center gap-3">
+          <div id="channelAvatar" class="w-10 h-10 rounded-full bg-[#383838] flex items-center justify-center font-bold text-white text-lg">
+            YT
+          </div>
+          <div>
+            <h2 id="videoTitle" class="font-semibold text-white text-base line-clamp-1">No Video Loaded</h2>
+            <p id="channelTitle" class="text-xs text-yt-muted">Paste a YouTube URL above to fetch video metadata</p>
+          </div>
+        </div>
+        
+        <button onclick="refreshLiveStats()" class="self-end md:self-auto bg-[#272727] hover:bg-[#383838] text-xs font-medium px-3.5 py-2 rounded-full text-white transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Refresh Live Stats
+        </button>
+      </div>
+
+      <!-- Counters Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+        <!-- Official YouTube View Count -->
+        <div class="bg-[#0f0f0f] border border-[#272727] p-3.5 rounded-xl">
+          <div class="text-[11px] uppercase tracking-wider text-yt-muted font-medium">YouTube Official Views</div>
+          <div id="officialViewCount" class="text-xl sm:text-2xl font-bold text-white mt-1">--</div>
+          <div class="text-[10px] text-gray-500 mt-0.5" id="viewSourceBadge">Requires API Key for live count</div>
+        </div>
+
+        <!-- Session Generated Views -->
+        <div class="bg-[#0f0f0f] border border-[#272727] p-3.5 rounded-xl">
+          <div class="text-[11px] uppercase tracking-wider text-yt-muted font-medium">Session Generated Views</div>
+          <div id="sessionViewCount" class="text-xl sm:text-2xl font-bold text-emerald-400 mt-1">0</div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Estimated multi-screen retention</div>
+        </div>
+
+        <!-- Active Windows -->
+        <div class="bg-[#0f0f0f] border border-[#272727] p-3.5 rounded-xl">
+          <div class="text-[11px] uppercase tracking-wider text-yt-muted font-medium">Active Windows</div>
+          <div id="activeScreenDisplay" class="text-xl sm:text-2xl font-bold text-sky-400 mt-1">0</div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Simultaneous players running</div>
+        </div>
+
+        <!-- Total Watch Time -->
+        <div class="bg-[#0f0f0f] border border-[#272727] p-3.5 rounded-xl">
+          <div class="text-[11px] uppercase tracking-wider text-yt-muted font-medium">Total Session Time</div>
+          <div id="sessionTimerDisplay" class="text-xl sm:text-2xl font-bold text-purple-400 mt-1">00:00:00</div>
+          <div class="text-[10px] text-gray-500 mt-0.5">Active player runtime</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Embedded Video Grid -->
+    <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+      <!-- Embedded players will be generated here -->
+    </div>
+
+  </main>
 
   <script>
-    const API_URL = 'https://video-ad-blocker-api.vercel.app/api/search';
-    const searchInput = document.getElementById('searchInput');
-    const resultsContainer = document.getElementById('resultsContainer');
-    let debounceTimer;
+    let sessionSeconds = 0;
+    let timerInterval = null;
+    let loopInterval = null;
+    let currentVideoId = null;
+    let generatedViewsCount = 0;
 
-    searchInput.addEventListener('input', (event) => {
-      clearTimeout(debounceTimer);
-      const query = event.target.value;
+    function extractVideoID(url) {
+      if (!url) return null;
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
 
-      debounceTimer = setTimeout(() => {
-        fetchResults(query);
-      }, 300);
-    });
+    function formatNumber(num) {
+      if (!num || isNaN(num)) return '--';
+      return parseInt(num, 10).toLocaleString();
+    }
 
-    async function fetchResults(query) {
-      if (!query.trim()) {
-        resultsContainer.innerHTML = '';
-        return;
+    function formatTime(totalSec) {
+      const hrs = Math.floor(totalSec / 3600).toString().padStart(2, '0');
+      const mins = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+      const secs = (totalSec % 60).toString().padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    }
+
+    async function fetchLiveYouTubeStats(videoId) {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const officialViewElem = document.getElementById('officialViewCount');
+      const viewSourceBadge = document.getElementById('viewSourceBadge');
+      const titleElem = document.getElementById('videoTitle');
+      const channelElem = document.getElementById('channelTitle');
+      const avatarElem = document.getElementById('channelAvatar');
+
+      if (apiKey) {
+        try {
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${apiKey}`);
+          const data = await res.json();
+
+          if (data.items && data.items.length > 0) {
+            const item = data.items[0];
+            const views = item.statistics.viewCount;
+            const title = item.snippet.title;
+            const channel = item.snippet.channelTitle;
+
+            officialViewElem.textContent = formatNumber(views);
+            officialViewElem.className = "text-xl sm:text-2xl font-bold text-emerald-400 mt-1";
+            viewSourceBadge.textContent = "Live from YouTube API";
+            titleElem.textContent = title;
+            channelElem.textContent = channel;
+            avatarElem.textContent = channel.charAt(0).toUpperCase();
+            return;
+          }
+        } catch (e) {
+          console.error("API Fetch Error:", e);
+        }
       }
 
+      // Fallback metadata fetcher (no API key required)
       try {
-        const response = await fetch(`${API_URL}?q=${encodeURIComponent(query)}`);
-
-        if (!response.ok) {
-          throw new Error(`Server returned status: ${response.status}`);
+        const oembedRes = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+        const oembedData = await oembedRes.json();
+        if (oembedData.title) {
+          titleElem.textContent = oembedData.title;
+          channelElem.textContent = oembedData.author_name || "YouTube Channel";
+          avatarElem.textContent = (oembedData.author_name || "Y").charAt(0).toUpperCase();
         }
+      } catch (e) {
+        titleElem.textContent = `Video ID: ${videoId}`;
+        channelElem.textContent = "YouTube Video";
+      }
 
-        const data = await response.json();
-        renderResults(data.results);
-      } catch (error) {
-        console.error('Search request failed:', error);
-        resultsContainer.innerHTML = '<p class="error">Error fetching search results. Please try again.</p>';
+      officialViewElem.textContent = "--";
+      officialViewElem.className = "text-xl sm:text-2xl font-bold text-white mt-1";
+      viewSourceBadge.textContent = "Add API key for live count";
+    }
+
+    function startTimer(screenCount) {
+      clearInterval(timerInterval);
+      sessionSeconds = 0;
+      generatedViewsCount = 0;
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        sessionSeconds++;
+        updateTimerDisplay();
+
+        // Increment session views every 30 seconds of playback retention
+        if (sessionSeconds > 0 && sessionSeconds % 30 === 0) {
+          generatedViewsCount += screenCount;
+          document.getElementById('sessionViewCount').textContent = formatNumber(generatedViewsCount);
+          document.getElementById('headerSessionViews').textContent = formatNumber(generatedViewsCount);
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const formatted = formatTime(sessionSeconds);
+      document.getElementById('sessionTimerDisplay').textContent = formatted;
+      document.getElementById('headerSessionTime').textContent = formatted;
+    }
+
+    function setupAutoRefreshLoop(videoId, screenCount) {
+      clearInterval(loopInterval);
+      const refreshSec = parseInt(document.getElementById('refreshInterval').value, 10);
+
+      if (refreshSec > 0) {
+        loopInterval = setInterval(() => {
+          renderEmbeds(videoId, screenCount);
+        }, refreshSec * 1000);
       }
     }
 
-    function renderResults(results) {
-      if (!results || results.length === 0) {
-        resultsContainer.innerHTML = '<p>No matching results found.</p>';
+    function renderEmbeds(videoId, count) {
+      const grid = document.getElementById('videoGrid');
+      grid.innerHTML = '';
+
+      if (count <= 2) {
+        grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+      } else if (count <= 4) {
+        grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+      } else if (count <= 6) {
+        grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+      } else {
+        grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4";
+      }
+
+      for (let i = 1; i <= count; i++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = "bg-[#1f1f1f] border border-[#272727] rounded-xl overflow-hidden shadow-xl flex flex-col";
+
+        wrapper.innerHTML = `
+          <div class="px-3 py-2 bg-[#272727]/60 border-b border-[#383838] flex items-center justify-between text-xs">
+            <span class="font-medium text-white flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Window #${i}
+            </span>
+            <span class="text-[10px] text-yt-muted bg-[#0f0f0f] px-2 py-0.5 rounded border border-[#383838]">Muted Auto-Play</span>
+          </div>
+          <div class="aspect-video relative bg-black">
+            <iframe 
+              src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&enablejsapi=1&rel=0" 
+              class="w-full h-full absolute inset-0 border-0" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowfullscreen>
+            </iframe>
+          </div>
+        `;
+
+        grid.appendChild(wrapper);
+      }
+    }
+
+    function loadMultiView() {
+      const urlInput = document.getElementById('ytUrl').value.trim();
+      const count = parseInt(document.getElementById('screenCount').value, 10);
+      const errorDiv = document.getElementById('errorMessage');
+
+      errorDiv.classList.add('hidden');
+
+      const videoId = extractVideoID(urlInput);
+
+      if (!videoId) {
+        errorDiv.textContent = "Please enter a valid YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID).";
+        errorDiv.classList.remove('hidden');
         return;
       }
 
-      resultsContainer.innerHTML = results.map(item => `
-        <div class="result-item">
-          <a href="${item.url}">${item.title}</a>
-          <p>${item.description}</p>
-        </div>
-      `).join('');
+      currentVideoId = videoId;
+
+      document.getElementById('headerActiveStreams').textContent = count;
+      document.getElementById('activeScreenDisplay').textContent = count;
+
+      fetchLiveYouTubeStats(videoId);
+      renderEmbeds(videoId, count);
+      startTimer(count);
+      setupAutoRefreshLoop(videoId, count);
+    }
+
+    function refreshLiveStats() {
+      if (currentVideoId) {
+        fetchLiveYouTubeStats(currentVideoId);
+      }
     }
   </script>
-
 </body>
 </html>
